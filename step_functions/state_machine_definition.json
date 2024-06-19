@@ -1,0 +1,92 @@
+{
+    "Comment": "State machine to orchestrate Glue jobs and EMR cluster for optimized joins",
+    "StartAt": "RunGlueJobsInParallel",
+    "States": {
+      "RunGlueJobsInParallel": {
+        "Type": "Parallel",
+        "Branches": [
+          {
+            "StartAt": "RunProductsJob",
+            "States": {
+              "RunProductsJob": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::glue:startJobRun.sync",
+                "Parameters": {
+                  "JobName": "products_job"
+                },
+                "End": true
+              }
+            }
+          },
+          {
+            "StartAt": "RunRatingsJob",
+            "States": {
+              "RunRatingsJob": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::glue:startJobRun.sync",
+                "Parameters": {
+                  "JobName": "ratings_job"
+                },
+                "End": true
+              }
+            }
+          }
+        ],
+        "Next": "AddCreateExternalTablesStep"
+      },
+       "AddCreateExternalTablesStep": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+        "Parameters": {
+          "ClusterId.$": "$.ClusterId",
+          "Step": {
+            "Name": "CreateExternalTables",
+            "ActionOnFailure": "TERMINATE_CLUSTER",
+            "HadoopJarStep": {
+              "Jar": "command-runner.jar",
+              "Args": [
+                "hive-script",
+                "--run-hive-script",
+                "--args",
+                "-f",
+                "s3://srikar95-bucket/emr_scripts/create_external_tables.hql"
+              ]
+            }
+          }
+        },
+        "ResultPath": "$.ExternalTablesResult",
+        "Next": "PassClusterId"
+      },
+      "PassClusterId": {
+        "Type": "Pass",
+        "Parameters": {
+          "ClusterId.$": "$.ClusterId"
+        },
+        "ResultPath": "$.ClusterInfo",
+        "Next": "AddRunJoinQueriesStep"
+      },
+      "AddRunJoinQueriesStep": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::elasticmapreduce:addStep.sync",
+        "Parameters": {
+          "ClusterId.$": "$.ClusterInfo.ClusterId",
+          "Step": {
+            "Name": "RunJoinQueries",
+            "ActionOnFailure": "TERMINATE_CLUSTER",
+            "HadoopJarStep": {
+              "Jar": "command-runner.jar",
+              "Args": [
+                "hive-script",
+                "--run-hive-script",
+                "--args",
+                "-f",
+                "s3://srikar95-bucket/emr_scripts/run_joins.hql"
+              ]
+            }
+          }
+        },
+        "End": true
+      }
+    }
+  }
+  
