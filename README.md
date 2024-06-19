@@ -1,3 +1,11 @@
+## AWS Hive Join Optimization
+   This repository demonstrates how to optimize join operations in Apache Hive using AWS Glue and Amazon EMR. The project architecture includes:
+
+- **ETL with AWS Glue**: Generate and partition datasets, storing them in S3.
+- **External Tables in Hive**: Define tables in Hive pointing to S3 data.
+- **Optimized Joins**: Implement Broadcast Joins, Bucketed Map Joins, and Sort-Merge Joins.
+- **Step Functions Orchestration**: Manage the workflow with AWS Step Functions, running Glue jobs and EMR tasks sequentially.
+
 
 ## Setup Instructions
 
